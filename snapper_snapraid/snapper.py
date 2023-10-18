@@ -18,9 +18,9 @@ import requests
 import pidfile
 from jsonschema import validate
 
-from reports.discord_report import create_discord_report
-from reports.email_report import create_email_report
-from utils import format_delta, get_relative_path, human_readable_size
+from snapper_snapraid.reports.discord_report import create_discord_report
+from snapper_snapraid.reports.email_report import create_email_report
+from snapper_snapraid.utils import format_delta, get_relative_path, human_readable_size
 
 #
 # Read config
@@ -693,15 +693,19 @@ def main():
             f'Unhandled Python Exception `{str(err) if str(err) else "unknown error"}`', err)
 
 
-try:
-    with pidfile.PIDFile('/tmp/snapper.pid'):
-        # Setup loggers after pidfile has been acquired
-        raw_log = setup_logger('snapper_raw', 'snapper_raw.log')
-        log = setup_logger('snapper', 'snapper.log')
+def entry_point():
+    try:
+        with pidfile.PIDFile('/tmp/snapper.pid'):
+            # Setup loggers after pidfile has been acquired
+            raw_log = setup_logger('snapper_raw', 'snapper_raw.log')
+            log = setup_logger('snapper', 'snapper.log')
 
-        log.handlers = raw_log.handlers + log.handlers
-        log.addHandler(logging.StreamHandler())
+            log.handlers = raw_log.handlers + log.handlers
+            log.addHandler(logging.StreamHandler())
 
-        main()
-except pidfile.AlreadyRunningError:
-    print('snapper already appears to be running!')
+            main()
+    except pidfile.AlreadyRunningError:
+        print('snapper already appears to be running!')
+
+if __name__ == "__main__":
+    entry_point()

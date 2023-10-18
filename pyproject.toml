@@ -1,0 +1,31 @@
+[project]
+name = "snapper-snapraid"
+version = "1.0.1"
+description = "A snapraid runner script"
+authors = [
+  { name = "Firas Dib", email = "firas.dib@ingka.ikea.com" },
+]
+license = { file = "LICENSE" }
+readme = "README.md"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+]
+requires-python = ">=3.7"
+dependencies = [
+  "requests>2",
+  "jsonschema>4.19",
+  "psutil>5.9",
+  "python-pidfile>3.1"
+]
+
+[project.scripts]
+snapper-snapraid = "snapper_snapraid.snapper:entry_point"
+
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+
+[project.urls]
+"Homepage" = "https://github.com/firasdib/snapper"
