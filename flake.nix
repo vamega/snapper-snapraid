@@ -23,6 +23,7 @@
           );
         in [
           pythonEnv
+          python3Packages.flit
         ];
       };
     });
