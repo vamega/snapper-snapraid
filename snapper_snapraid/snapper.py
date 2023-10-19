@@ -224,19 +224,21 @@ def run_snapraid(commands, progress_handler=None, allowed_return_codes=[]):
         concurrent.futures.ThreadPoolExecutor(2) as tpe,
     ):
         def read_stdout(file):
+            _cmd = ' '.join(commands)
             for line in file:
                 rline = line.rstrip()
 
-                raw_log.info(rline)
+                log.info(rline, extra={'STREAM': 'OUT', 'CMD': _cmd})
 
                 if progress_handler is None or not progress_handler(rline):
                     std_out.append(rline)
 
         def read_stderr(file):
+            _cmd = ' '.join(commands)
             for line in file:
                 rline = line.rstrip()
 
-                raw_log.error(rline)
+                log.error(rline, extra={'STREAM': "ERR", 'CMD': _cmd})
                 std_err.append(rline)
 
         f1 = tpe.submit(read_stdout, process.stdout)
