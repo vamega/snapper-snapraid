@@ -15,6 +15,7 @@ from operator import itemgetter
 
 import psutil
 import requests
+from systemd.journal import JournalHandler
 
 from snapper_snapraid.reports.discord_report import create_discord_report
 from snapper_snapraid.reports.email_report import create_email_report
@@ -23,44 +24,13 @@ from snapper_snapraid.utils import format_delta, get_relative_path, human_readab
 config = None
 
 # Configure logging
-
-def rotator(source, dest):
-    with open(source, 'rb') as f_in:
-        with gzip.open(dest, 'wb') as f_out:
-            shutil.copyfileobj(f_in, f_out)
-
-    os.remove(source)
-
-
-def setup_logger(name, log_file, level='INFO'):
-    log_dir, max_count = itemgetter('dir', 'max_count')(config['logs'])
-
-    if not os.path.exists(log_dir):
-        os.makedirs(log_dir)
-
-    log_file_path = os.path.join(log_dir, log_file)
-    needs_rollover = os.path.isfile(log_file_path)
-
-    handler = logging.handlers.RotatingFileHandler(log_file_path, backupCount=max(max_count, 1))
-    handler.setFormatter(logging.Formatter('[%(asctime)s] - [%(levelname)s] - %(message)s'))
-
-    handler.rotator = rotator
-    handler.namer = lambda file_name: file_name + '.gz'
-
-    if needs_rollover:
-        handler.doRollover()
-
-    logger = logging.getLogger(name)
-    logger.setLevel(level)
-
-    if logger.hasHandlers():
-        logger.handlers.clear()
-
-    logger.addHandler(handler)
-    logger.propagate = False
-
-    return logger
-
+# TODO: Identify if being run in systemd and use a different log handler if nto.
+# Can probably check for the INVOCATION_ID environment variable, or perhaps do something
+# with the JOURNAL_STREAM environment variable
+# Both are described in https://www.freedesktop.org/software/systemd/man/latest/systemd.exec.html
+log = logging.getLogger("snapper-snapraid")
+log.setLevel(logging.DEBUG)
+logging.root.addHandler(JournalHandler())
 
 #
 # Parse command line args
@@ -686,14 +656,6 @@ def entry_point():
     global config
     with open(config_file_path, 'r') as f:
         config = json.load(f)
-
-    # Setup loggers after pidfile has been acquired
-    raw_log = setup_logger('snapper_raw', 'snapper_raw.log')
-    log = setup_logger('snapper', 'snapper.log')
-
-    log.handlers = raw_log.handlers + log.handlers
-    log.addHandler(logging.StreamHandler())
-
     main()
 
 if __name__ == "__main__":

@@ -18,6 +18,7 @@
                 requests
                 jsonschema
                 psutil
+                systemd
               ]
           );
         in [
