@@ -18,7 +18,6 @@
                 requests
                 jsonschema
                 psutil
-                python-pidfile
               ]
           );
         in [

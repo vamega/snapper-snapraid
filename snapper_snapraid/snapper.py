@@ -15,7 +15,6 @@ from operator import itemgetter
 
 import psutil
 import requests
-import pidfile
 
 from snapper_snapraid.reports.discord_report import create_discord_report
 from snapper_snapraid.reports.email_report import create_email_report
@@ -685,21 +684,17 @@ def main():
 
 def entry_point():
     global config
-    try:
-        with pidfile.PIDFile('/tmp/snapper.pid'):
-            with open(config_file_path, 'r') as f:
-                config = json.load(f)
+    with open(config_file_path, 'r') as f:
+        config = json.load(f)
 
-            # Setup loggers after pidfile has been acquired
-            raw_log = setup_logger('snapper_raw', 'snapper_raw.log')
-            log = setup_logger('snapper', 'snapper.log')
+    # Setup loggers after pidfile has been acquired
+    raw_log = setup_logger('snapper_raw', 'snapper_raw.log')
+    log = setup_logger('snapper', 'snapper.log')
 
-            log.handlers = raw_log.handlers + log.handlers
-            log.addHandler(logging.StreamHandler())
+    log.handlers = raw_log.handlers + log.handlers
+    log.addHandler(logging.StreamHandler())
 
-            main()
-    except pidfile.AlreadyRunningError:
-        print('snapper already appears to be running!')
+    main()
 
 if __name__ == "__main__":
     entry_point()
