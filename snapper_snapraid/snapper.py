@@ -16,25 +16,13 @@ from operator import itemgetter
 import psutil
 import requests
 import pidfile
-from jsonschema import validate
 
 from snapper_snapraid.reports.discord_report import create_discord_report
 from snapper_snapraid.reports.email_report import create_email_report
 from snapper_snapraid.utils import format_delta, get_relative_path, human_readable_size
 
-#
-# Read config
+config = None
 
-with open(get_relative_path(__file__, './config.json'), 'r') as f:
-    config = json.load(f)
-
-with open(get_relative_path(__file__, './config.schema.json'), 'r') as f:
-    schema = json.load(f)
-
-validate(instance=config, schema=schema)
-
-
-#
 # Configure logging
 
 def rotator(source, dest):
@@ -82,9 +70,11 @@ parser = argparse.ArgumentParser(description='SnapRAID execution wrapper')
 parser.add_argument('-f', '--force',
                     help='Ignore any set thresholds or warnings and execute all jobs regardless',
                     action='store_true')
-args = vars(parser.parse_args())
-
-force_script_execution = args['force']
+parser.add_argument('-c', '--config',
+                    help='Path to snapraid-snapper configuration file')
+args = parser.parse_args()
+force_script_execution = args.force
+config_file_path = args.config
 
 
 #
@@ -694,8 +684,12 @@ def main():
 
 
 def entry_point():
+    global config
     try:
         with pidfile.PIDFile('/tmp/snapper.pid'):
+            with open(config_file_path, 'r') as f:
+                config = json.load(f)
+
             # Setup loggers after pidfile has been acquired
             raw_log = setup_logger('snapper_raw', 'snapper_raw.log')
             log = setup_logger('snapper', 'snapper.log')
