@@ -15,7 +15,6 @@ from operator import itemgetter
 
 import psutil
 import requests
-from systemd.journal import JournalHandler
 
 from snapper_snapraid.reports.discord_report import create_discord_report
 from snapper_snapraid.reports.email_report import create_email_report
@@ -75,7 +74,15 @@ class ColorFormatter(logging.Formatter):
 
 log = logging.getLogger("snapper-snapraid")
 log.setLevel(logging.DEBUG)
-if not args.disable_journald:
+
+_HAS_SYSTEMD = False
+try:
+    from systemd.journal import JournalHandler
+    _HAS_SYSTEMD = True
+except ImportError:
+    pass
+
+if not args.disable_journald and _HAS_SYSTEMD:
     logging.root.addHandler(JournalHandler())
 else:
     ch = logging.StreamHandler()
