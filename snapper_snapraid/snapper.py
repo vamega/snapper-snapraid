@@ -8,6 +8,7 @@ import os
 import re
 import subprocess
 import traceback
+from typing import Any, Callable, Dict, List, Optional, Tuple
 from datetime import datetime, timedelta
 from operator import itemgetter
 
@@ -18,7 +19,7 @@ from snapper_snapraid.reports.discord_report import create_discord_report
 from snapper_snapraid.reports.email_report import create_email_report
 from snapper_snapraid.utils import format_delta, human_readable_size
 
-config = None
+config: Dict = {}
 
 #
 # Parse command line args
@@ -96,7 +97,7 @@ else:
 # Notification helpers
 
 
-def notify_and_handle_error(message, error):
+def notify_and_handle_error(message: str, error: BaseException) -> None:
     log.error(message)
     log.error("".join(traceback.format_exception(None, error, error.__traceback__)))
 
@@ -106,17 +107,21 @@ def notify_and_handle_error(message, error):
     exit(1)
 
 
-def notify_warning(message, embeds=None):
+def notify_warning(message: str, embeds: Optional[List[Any]] = None):
     return send_discord(f":warning: [**WARNING!**] {message}", embeds=embeds)
 
 
-def notify_info(message, embeds=None, message_id=None):
+def notify_info(
+    message: str, embeds: Optional[List[Any]] = None, message_id: Optional[str] = None
+):
     return send_discord(
         f":information_source: [**INFO**] {message}", embeds, message_id
     )
 
 
-def send_discord(message, embeds=None, message_id=None):
+def send_discord(
+    message: str, embeds: Optional[List[Any]] = None, message_id: Optional[str] = None
+):
     is_enabled, webhook_id, webhook_token = itemgetter(
         "enabled", "webhook_id", "webhook_token"
     )(config["notifications"]["discord"])
@@ -162,7 +167,7 @@ def send_discord(message, embeds=None, message_id=None):
         log.error(str(err))
 
 
-def send_email(subject, message):
+def send_email(subject: str, message) -> None:
     log.debug("Attempting to send email...")
 
     is_enabled, mail_bin, from_email, to_email = itemgetter(
@@ -201,7 +206,7 @@ def send_email(subject, message):
 # Snapraid Helpers
 
 
-def is_running():
+def is_running() -> bool:
     for process in psutil.process_iter(attrs=["name"]):
         if process.name().lower() == "snapraid":
             return True
@@ -209,7 +214,7 @@ def is_running():
     return False
 
 
-def set_snapraid_priority():
+def set_snapraid_priority() -> None:
     # Setting nice is enough, as ionice follows that per the documentation here:
     # https://www.kernel.org/doc/Documentation/block/ioprio.txt
     #
@@ -272,7 +277,11 @@ def spin_down():
 # Snapraid Commands
 
 
-def run_snapraid(commands, progress_handler=None, allowed_return_codes=[]):
+def run_snapraid(
+    commands,
+    progress_handler: Optional[Callable[[str], Any]] = None,
+    allowed_return_codes=[],
+):
     snapraid_bin, snapraid_config = itemgetter("binary", "config")(config["snapraid"])
 
     if not os.path.isfile(snapraid_bin):
@@ -488,7 +497,7 @@ def handle_progress():
     return handler
 
 
-def _run_sync(run_count):
+def _run_sync(run_count: int):
     pre_hash, auto_sync = itemgetter("pre_hash", "auto_sync")(
         config["snapraid"]["sync"]
     )
@@ -547,7 +556,7 @@ def _run_sync(run_count):
             raise err
 
 
-def run_sync():
+def run_sync() -> str:
     start = datetime.now()
     _run_sync(1)
     end = datetime.now()
@@ -560,10 +569,12 @@ def run_sync():
     return sync_job_time
 
 
-def run_scrub():
-    enabled, scrub_new, check_percent, min_age = itemgetter(
-        "enabled", "scrub_new", "check_percent", "min_age"
-    )(config["snapraid"]["scrub"])
+def run_scrub() -> Optional[str]:
+    snapraid_scrub_config = config["snapraid"]["scrub"]
+    enabled = snapraid_scrub_config["enabled"]
+    scrub_new = snapraid_scrub_config["scrub_new"]
+    check_percent = snapraid_scrub_config["check_percent"]
+    min_age = snapraid_scrub_config["min_age"]
 
     if not enabled:
         log.info("Scrubbing not enabled, skipping.")
@@ -597,7 +608,7 @@ def run_scrub():
     return scrub_job_time
 
 
-def run_touch():
+def run_touch() -> None:
     run_snapraid(["touch"])
 
 
@@ -605,7 +616,7 @@ def run_touch():
 # Sanity Checker
 
 
-def get_snapraid_config():
+def get_snapraid_config() -> Tuple[List[str], List[str]]:
     config_file = config["snapraid"]["config"]
 
     if not os.path.isfile(config_file):
@@ -629,7 +640,7 @@ def get_snapraid_config():
     return content_files, parity_files
 
 
-def sanity_check():
+def sanity_check() -> None:
     content_files, parity_files = get_snapraid_config()
     files = content_files + parity_files
 
@@ -703,9 +714,9 @@ def main():
             or sync_in_progress
             or force_script_execution
         ):
-            updated_threshold, removed_threshold = itemgetter("updated", "removed")(
-                config["snapraid"]["diff"]["thresholds"]
-            )
+            thresholds_conf = config["snapraid"]["diff"]["thresholds"]
+            updated_threshold = thresholds_conf["updated"]
+            removed_threshold = thresholds_conf["removed"]
 
             if force_script_execution:
                 log.info("Ignoring any thresholds and forcefully proceeding with sync.")

@@ -1,7 +1,7 @@
 from pathlib import Path
 
 
-def format_delta(delta):
+def format_delta(delta) -> str:
     hours, remainder = divmod(delta.seconds, 3600)
     minutes, seconds = divmod(remainder, 60)
 
@@ -12,7 +12,7 @@ def get_relative_path(parent_path, file):
     return Path(parent_path).parent / file
 
 
-def human_readable_size(size):
+def human_readable_size(size: int) -> str:
     suffixes = ["MB", "GB", "TB", "PB"]
     i = 0
     while size >= 1024 and i < len(suffixes) - 1:
