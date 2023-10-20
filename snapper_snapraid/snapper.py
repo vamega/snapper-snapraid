@@ -23,15 +23,6 @@ from snapper_snapraid.utils import format_delta, get_relative_path, human_readab
 
 config = None
 
-# Configure logging
-# TODO: Identify if being run in systemd and use a different log handler if nto.
-# Can probably check for the INVOCATION_ID environment variable, or perhaps do something
-# with the JOURNAL_STREAM environment variable
-# Both are described in https://www.freedesktop.org/software/systemd/man/latest/systemd.exec.html
-log = logging.getLogger("snapper-snapraid")
-log.setLevel(logging.DEBUG)
-logging.root.addHandler(JournalHandler())
-
 #
 # Parse command line args
 
@@ -41,10 +32,55 @@ parser.add_argument('-f', '--force',
                     action='store_true')
 parser.add_argument('-c', '--config',
                     help='Path to snapraid-snapper configuration file')
+parser.add_argument('--disable-journald',
+                    help='Have logs go to stdout/stderr',
+                    action='store_true')
+
 args = parser.parse_args()
 force_script_execution = args.force
 config_file_path = args.config
 
+
+class ColorFormatter(logging.Formatter):
+    grey = "\x1b[38;20m"
+    yellow = "\x1b[33;20m"
+    red = "\x1b[31;20m"
+    bold_red = "\x1b[31;1m"
+    reset = "\x1b[0m"
+    _format = (
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s (%(filename)s:%(lineno)d)"
+    )
+
+    FORMATS = {
+        logging.DEBUG: grey + _format + reset,
+        logging.INFO: grey + _format + reset,
+        logging.WARNING: yellow + _format + reset,
+        logging.ERROR: red + _format + reset,
+        logging.CRITICAL: bold_red + _format + reset,
+    }
+
+    def format(self, record):
+        log_fmt = self.FORMATS.get(record.levelno)
+        formatter = logging.Formatter(log_fmt)
+        return formatter.format(record)
+
+
+# Configure logging
+# TODO: Maybe worth auto-detecing if running under systemd and when not running
+# under systemd log to the console instead?
+#
+# Can probably check for the INVOCATION_ID environment variable, or perhaps do something
+# with the JOURNAL_STREAM environment variable
+# Both are described in https://www.freedesktop.org/software/systemd/man/latest/systemd.exec.html
+
+log = logging.getLogger("snapper-snapraid")
+log.setLevel(logging.DEBUG)
+if not args.disable_journald:
+    logging.root.addHandler(JournalHandler())
+else:
+    ch = logging.StreamHandler()
+    ch.setFormatter(ColorFormatter())
+    logging.root.addHandler(ch)
 
 #
 # Notification helpers
