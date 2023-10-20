@@ -36,6 +36,7 @@
         in [
           pythonEnv
           python3Packages.flit
+          nodePackages.pyright
         ];
 
         inherit (self.checks.${system}.pre-commit-check) shellHook;
