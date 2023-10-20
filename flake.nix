@@ -19,6 +19,7 @@
                 jsonschema
                 psutil
                 systemd
+                ipython
               ]
           );
         in [
