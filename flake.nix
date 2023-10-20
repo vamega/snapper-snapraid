@@ -1,9 +1,15 @@
 {
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+  inputs.pre-commit-hooks = {
+    url = "github:cachix/pre-commit-hooks.nix";
+    inputs.nixpkgs.follows = "nixpkgs";
+    inputs.nixpkgs-stable.follows = "nixpkgs";
+  };
 
   outputs = {
     self,
     nixpkgs,
+    pre-commit-hooks,
   }: let
     inherit (nixpkgs) lib;
     supportedSystems = ["x86_64-linux" "x86_64-darwin" "aarch64-linux" "aarch64-darwin"];
@@ -31,6 +37,17 @@
           pythonEnv
           python3Packages.flit
         ];
+
+        inherit (self.checks.${system}.pre-commit-check) shellHook;
+      };
+    });
+
+    checks = forAllSystems (system: {
+      pre-commit-check = pre-commit-hooks.lib.${system}.run {
+        src = ./.;
+        hooks = {
+          black.enable = true;
+        };
       };
     });
   };
