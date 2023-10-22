@@ -21,6 +21,7 @@
                   jsonschema
                   psutil
                   ipython
+                  black
                 ]
                 ++ lib.optionals (lib.hasSuffix "linux" system) [
                   systemd
