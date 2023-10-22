@@ -37,7 +37,7 @@ parser.add_argument(
     "-c", "--config", help="Path to snapraid-snapper configuration file"
 )
 parser.add_argument(
-    "--disable-journald", help="Have logs go to stdout/stderr", action="store_true"
+    "--disable-systemd", help="Have logs go to stdout/stderr", action="store_true"
 )
 
 args = parser.parse_args()
@@ -137,12 +137,13 @@ subprocess_log.setLevel(logging.INFO)
 _HAS_SYSTEMD = False
 try:
     from systemd.journal import JournalHandler
+    from systemd.daemon import notify as sd_notify
 
     _HAS_SYSTEMD = True
 except ImportError:
     pass
 
-if not args.disable_journald and _HAS_SYSTEMD:
+if not args.disable_systemd and _HAS_SYSTEMD:
     logging.root.addHandler(JournalHandler())
 else:
     if sys.stderr.isatty():
@@ -174,13 +175,15 @@ def notify_and_handle_error(message: str, error: BaseException) -> None:
     exit(1)
 
 
-def notify_warning(message: str, embeds: Optional[List[Any]] = None):
+def notify_warning(message: str, embeds: Optional[List[Any]] = None) -> Optional[str]:
     return send_discord(f":warning: [**WARNING!**] {message}", embeds=embeds)
 
 
 def notify_info(
     message: str, embeds: Optional[List[Any]] = None, message_id: Optional[str] = None
-):
+) -> Optional[str]:
+    if not args.disable_systemd and _HAS_SYSTEMD:
+        sd_notify(message)
     return send_discord(
         f":information_source: [**INFO**] {message}", embeds, message_id
     )
@@ -188,7 +191,7 @@ def notify_info(
 
 def send_discord(
     message: str, embeds: Optional[List[Any]] = None, message_id: Optional[str] = None
-):
+) -> Optional[str]:
     is_enabled, webhook_id, webhook_token = itemgetter(
         "enabled", "webhook_id", "webhook_token"
     )(config["notifications"]["discord"])
