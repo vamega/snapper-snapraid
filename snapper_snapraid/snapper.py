@@ -8,6 +8,8 @@ import os
 import re
 import subprocess
 import traceback
+import sys
+from time import gmtime
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from datetime import datetime, timedelta
 from operator import itemgetter
@@ -43,28 +45,76 @@ force_script_execution = args.force
 config_file_path = args.config
 
 
-class ColorFormatter(logging.Formatter):
-    grey = "\x1b[38;20m"
-    yellow = "\x1b[33;20m"
-    red = "\x1b[31;20m"
-    bold_red = "\x1b[31;1m"
-    reset = "\x1b[0m"
-    _format = (
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s (%(filename)s:%(lineno)d)"
-    )
+# ANSI Color codes
+_GREY = "\x1b[38;20m"
+_YELLOW = "\x1b[33;20m"
+_RED = "\x1b[31;20m"
+_BOLD_RED = "\x1b[31;1m"
+_RESET = "\x1b[0m"
 
-    FORMATS = {
-        logging.DEBUG: grey + _format + reset,
-        logging.INFO: grey + _format + reset,
-        logging.WARNING: yellow + _format + reset,
-        logging.ERROR: red + _format + reset,
-        logging.CRITICAL: bold_red + _format + reset,
-    }
+
+class ScriptLogFormatter(logging.Formatter):
+    def __init__(self, use_color: bool = True):
+        _format = f"%(asctime)s #COLOR#[%(levelname)-8s]{_RESET} %(message)s"
+        if not use_color:
+            _format = f"%(asctime)s [%(levelname)-8s] %(message)s"
+
+        self._formatters = {
+            k: logging.Formatter(
+                v, datefmt="%Y-%m-%d,%H:%M:%S", defaults={"CMD": "", "STREAM": ""}
+            )
+            for k, v in {
+                logging.DEBUG: _format.replace("#COLOR#", _GREY),
+                logging.INFO: _format.replace("#COLOR#", _GREY),
+                logging.WARNING: _format.replace("#COLOR#", _YELLOW),
+                logging.ERROR: _format.replace("#COLOR#", _RED),
+                logging.CRITICAL: _format.replace("#COLOR#", _BOLD_RED),
+            }.items()
+        }
 
     def format(self, record):
-        log_fmt = self.FORMATS.get(record.levelno)
-        formatter = logging.Formatter(log_fmt)
+        formatter = self._formatters.get(record.levelno)
         return formatter.format(record)
+
+
+class SubprocessFormatter(logging.Formatter):
+    def __init__(self, use_color: bool = False):
+        _known_fmt_str = (
+            "%(asctime)s [%(levelname)-8s][%(CMD)-6.6s]"
+            "#COLOR#[%(STREAM)-3.3s] %(message)s#RESET#"
+        )
+        _unknown_fmt_str = (
+            f"%(asctime)s [%(levelname)-8s]$#COLOR#[??????]#RESET#"
+            f"#COLOR#[???]#RESET# %(message)s"
+        )
+
+        if not use_color:
+            _known_fmt_str = (
+                "%(asctime)s [%(levelname)-8s][%(CMD)-6.6s][%(STREAM)-3.3s] %(message)s"
+            )
+            _unknown_fmt_str = (
+                f"%(asctime)s [%(levelname)-8s]$[??????][???] %(message)s"
+            )
+
+        self._formatters = {
+            k: logging.Formatter(v, datefmt="%Y-%m-%d,%H:%M:%S")
+            for k, v in {
+                "OUT": _known_fmt_str.replace("#COLOR#", _YELLOW).replace(
+                    "#RESET#", _RESET
+                ),
+                "ERR": _known_fmt_str.replace("#COLOR#", _RED).replace(
+                    "#RESET#", _RESET
+                ),
+            }.items()
+        }
+        self._default_formatter = logging.Formatter(
+            _unknown_fmt_str.replace("#COLOR#", _RED).replace("#RESET#", _RESET)
+        )
+
+    def format(self, record):
+        return self._formatters.get(record.STREAM, self._default_formatter).format(
+            record
+        )
 
 
 # Configure logging
@@ -75,8 +125,14 @@ class ColorFormatter(logging.Formatter):
 # with the JOURNAL_STREAM environment variable
 # Both are described in https://www.freedesktop.org/software/systemd/man/latest/systemd.exec.html
 
+logging.root.setLevel(logging.INFO)
+logging.Formatter.converter = gmtime
+
 log = logging.getLogger("snapper-snapraid")
 log.setLevel(logging.DEBUG)
+
+subprocess_log = logging.getLogger("subprocess")
+subprocess_log.setLevel(logging.INFO)
 
 _HAS_SYSTEMD = False
 try:
@@ -89,9 +145,20 @@ except ImportError:
 if not args.disable_journald and _HAS_SYSTEMD:
     logging.root.addHandler(JournalHandler())
 else:
+    if sys.stderr.isatty():
+        use_color = True
+    else:
+        use_color = False
+
     ch = logging.StreamHandler()
-    ch.setFormatter(ColorFormatter())
+    ch.setFormatter(ScriptLogFormatter(use_color=use_color))
+
+    sh = logging.StreamHandler()
+    sh.setFormatter(SubprocessFormatter(use_color=use_color))
+
     logging.root.addHandler(ch)
+    subprocess_log.addHandler(sh)
+    subprocess_log.propagate = False
 
 #
 # Notification helpers
@@ -168,14 +235,14 @@ def send_discord(
 
 
 def send_email(subject: str, message) -> None:
-    log.debug("Attempting to send email...")
-
     is_enabled, mail_bin, from_email, to_email = itemgetter(
         "enabled", "binary", "from_email", "to_email"
     )(config["notifications"]["email"])
 
     if not is_enabled:
         return
+
+    log.debug("Attempting to send email...")
 
     if not os.path.isfile(mail_bin):
         raise FileNotFoundError("Unable to find mail executable", mail_bin)
@@ -313,7 +380,7 @@ def run_snapraid(
             for line in file:
                 rline = line.rstrip()
 
-                log.info(rline, extra={"STREAM": "OUT", "CMD": _cmd})
+                subprocess_log.info(rline, extra={"STREAM": "OUT", "CMD": _cmd})
 
                 if progress_handler is None or not progress_handler(rline):
                     std_out.append(rline)
@@ -323,7 +390,7 @@ def run_snapraid(
             for line in file:
                 rline = line.rstrip()
 
-                log.error(rline, extra={"STREAM": "ERR", "CMD": _cmd})
+                subprocess_log.error(rline, extra={"STREAM": "ERR", "CMD": _cmd})
                 std_err.append(rline)
 
         f1 = tpe.submit(read_stdout, process.stdout)
