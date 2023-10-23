@@ -284,20 +284,6 @@ def is_running() -> bool:
     return False
 
 
-def set_snapraid_priority() -> None:
-    # Setting nice is enough, as ionice follows that per the documentation here:
-    # https://www.kernel.org/doc/Documentation/block/ioprio.txt
-    #
-    # The default class `IOPRIO_CLASS_BE` sets ionice as: `io_nice = (cpu_nice + 20) / 5.`
-    # The default nice is 0, which sets ionice to 4.
-    # We set nice to 10, which results in ionice of 6 - this way it's not entirely down prioritized.
-
-    nice_level = config["snapraid"]["nice"]
-    os.nice(nice_level)
-    p = psutil.Process(os.getpid())
-    p.ionice(psutil.IOPRIO_CLASS_BE, math.floor((nice_level + 20) / 5))
-
-
 def spin_down():
     hdparm_bin, is_enabled, drives = itemgetter("binary", "enabled", "drives")(
         config["spindown"]
@@ -371,7 +357,6 @@ def run_snapraid(
             shell=False,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            preexec_fn=set_snapraid_priority,
             encoding="utf-8",
             errors="replace",
         ) as process,
