@@ -14,7 +14,6 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 from datetime import datetime, timedelta
 from operator import itemgetter
 
-import psutil
 import requests
 
 from snapper_snapraid.reports.discord_report import create_discord_report
@@ -276,14 +275,6 @@ def send_email(subject: str, message) -> None:
 # Snapraid Helpers
 
 
-def is_running() -> bool:
-    for process in psutil.process_iter(attrs=["name"]):
-        if process.name().lower() == "snapraid":
-            return True
-
-    return False
-
-
 def spin_down():
     hdparm_bin, is_enabled, drives = itemgetter("binary", "enabled", "drives")(
         config["spindown"]
@@ -342,11 +333,6 @@ def run_snapraid(
 
     if not os.path.isfile(snapraid_bin):
         raise FileNotFoundError("Unable to find SnapRAID executable", snapraid_bin)
-
-    if is_running():
-        raise ChildProcessError(
-            "SnapRAID already seems to be running, unable to proceed."
-        )
 
     std_out = []
     std_err = []

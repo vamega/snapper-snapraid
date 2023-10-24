@@ -25,7 +25,6 @@
                 [
                   requests
                   jsonschema
-                  psutil
                   ipython
                   black
                 ]
