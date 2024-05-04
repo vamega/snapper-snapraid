@@ -128,9 +128,11 @@ Free Space (GB)   {d["free_gb"]}
 
     for i, d in enumerate(smart_drive_data):
         field = {
-            "name": f'{d["device"]} (`{d["serial"]}`)'
-            if d["disk"] == "-"
-            else f'{d["disk"]} ({d["device"]}, `{d["serial"]}`)',
+            "name": (
+                f'{d["device"]} (`{d["serial"]}`)'
+                if d["disk"] == "-"
+                else f'{d["disk"]} ({d["device"]}, `{d["serial"]}`)'
+            ),
             "value": f"""```
 Temperature (°C)     {d["temp"]}
 Power On Time (days) {d["power_on_days"]}  
