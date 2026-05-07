@@ -447,28 +447,39 @@ def get_status():
     )
 
 
-def get_diff():
-    snapraid_diff, _ = run_snapraid(["diff"], allowed_return_codes=[2])
-
+def parse_diff_output(snapraid_diff: str):
     diff_regex = re.compile(
-        r"""^ *(?P<equal>\d+) equal$
-^ *(?P<added>\d+) added$
-^ *(?P<removed>\d+) removed$
-^ *(?P<updated>\d+) updated$
-^ *(?P<moved>\d+) moved$
-^ *(?P<copied>\d+) copied$
-^ *(?P<restored>\d+) restored$""",
+        r"^ *(?P<count>\d+) "
+        r"(?P<key>equal|added|removed|updated|moved|copied|relocated|restored)$",
         flags=re.MULTILINE,
     )
 
-    diff_data = [m.groupdict() for m in diff_regex.finditer(snapraid_diff)]
+    diff_int = {
+        match.group("key"): int(match.group("count"))
+        for match in diff_regex.finditer(snapraid_diff)
+    }
 
-    if len(diff_data) == 0:
+    expected_keys = [
+        "equal",
+        "added",
+        "removed",
+        "updated",
+        "moved",
+        "copied",
+        "restored",
+    ]
+    if not all(k in diff_int for k in expected_keys):
         raise ValueError("Unable to parse diff output from SnapRAID, not proceeding.")
 
-    diff_int = dict([a, int(x)] for a, x in diff_data[0].items())
+    diff_int.setdefault("relocated", 0)
 
     return diff_int
+
+
+def get_diff():
+    snapraid_diff, _ = run_snapraid(["diff"], allowed_return_codes=[2])
+
+    return parse_diff_output(snapraid_diff)
 
 
 def get_smart():
@@ -747,6 +758,7 @@ def main():
             + f'{diff_data["updated"]} updated, '
             + f'{diff_data["moved"]} moved, '
             + f'{diff_data["copied"]} copied, '
+            + f'{diff_data["relocated"]} relocated, '
             + f'{diff_data["restored"]} restored'
         )
 

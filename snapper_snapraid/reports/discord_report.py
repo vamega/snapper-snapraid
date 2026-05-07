@@ -67,6 +67,11 @@ def create_discord_report(report_data):
             {"name": "Moved", "value": f'```{diff_data["moved"]}```', "inline": True},
             {"name": "Copied", "value": f'```{diff_data["copied"]}```', "inline": True},
             {
+                "name": "Relocated",
+                "value": f'```{diff_data["relocated"]}```',
+                "inline": True,
+            },
+            {
                 "name": "Restored",
                 "value": f'```{diff_data["restored"]}```',
                 "inline": True,

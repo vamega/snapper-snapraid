@@ -51,6 +51,7 @@ def create_email_report(report_data):
           <li>{diff_data["updated"]} updated</li>
           <li>{diff_data["moved"]} moved</li>
           <li>{diff_data["copied"]} copied</li>
+          <li>{diff_data["relocated"]} relocated</li>
           <li>{diff_data["restored"]} restored</li>
         </ul>
         """
