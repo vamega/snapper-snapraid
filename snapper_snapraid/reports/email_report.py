@@ -120,8 +120,9 @@ def create_email_report(report_data):
     </table>
     """
 
-    smart_drive_report = "".join(
-        f"""
+    if smart_drive_data:
+        smart_drive_report = "".join(
+            f"""
     <tr>
         <td>{d["disk"]} ({d["device"]})</td>
         <td>{d["temp"]}</td>
@@ -132,8 +133,16 @@ def create_email_report(report_data):
         <td>{d["serial"]}</td>
     </tr>
     """
-        for d in smart_drive_data
-    )
+            for d in smart_drive_data
+        )
+    else:
+        smart_drive_report = """
+    <tr>
+        <td colspan="7">SMART data unavailable</td>
+    </tr>
+    """
+
+    smart_probability = "unavailable" if global_fp == "-" else f"{global_fp}%"
 
     smart_report = f"""
     <h3>SMART Report</h3>
@@ -153,7 +162,7 @@ def create_email_report(report_data):
             {smart_drive_report}
         </tbody>
     </table>
-    <p>The current failure probability of any single drive this year is <strong>{global_fp}%</strong>.</p>
+    <p>The current failure probability of any single drive this year is <strong>{smart_probability}</strong>.</p>
     """
 
     email_report = f"""

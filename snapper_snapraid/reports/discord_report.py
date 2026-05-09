@@ -124,36 +124,42 @@ Free Space (GB)   {d["free_gb"]}
         if (i + 1) % 2 == 0 and i + 1 != len(drive_stats):
             array_report_embed["fields"].append(empty_field)
 
+    smart_probability = "unavailable" if global_fp == "-" else f"{global_fp}%"
     smart_report_embed = {
         "title": "SMART Report",
-        "description": f"The current failure probability of any single drive this year is {global_fp}%.",
+        "description": f"The current failure probability of any single drive this year is {smart_probability}.",
         "color": did_run_color,
         "fields": [],
     }
 
-    for i, d in enumerate(smart_drive_data):
-        field = {
-            "name": (
-                f'{d["device"]} (`{d["serial"]}`)'
-                if d["disk"] == "-"
-                else f'{d["disk"]} ({d["device"]}, `{d["serial"]}`)'
-            ),
-            "value": f"""```
+    if smart_drive_data:
+        for i, d in enumerate(smart_drive_data):
+            field = {
+                "name": (
+                    f'{d["device"]} (`{d["serial"]}`)'
+                    if d["disk"] == "-"
+                    else f'{d["disk"]} ({d["device"]}, `{d["serial"]}`)'
+                ),
+                "value": f"""```
 Temperature (°C)     {d["temp"]}
 Power On Time (days) {d["power_on_days"]}  
 Error Count          {d["error_count"]}
 Failure Probability  {d["fp"]}
 Drive Size (TiB)     {d["size"]}
 ```""".replace(
-                " ", "\u00A0"
-            ),
-            "inline": True,
-        }
+                    " ", "\u00A0"
+                ),
+                "inline": True,
+            }
 
-        smart_report_embed["fields"].append(field)
+            smart_report_embed["fields"].append(field)
 
-        if (i + 1) % 2 == 0 and i + 1 != len(smart_drive_data):
-            smart_report_embed["fields"].append(empty_field)
+            if (i + 1) % 2 == 0 and i + 1 != len(smart_drive_data):
+                smart_report_embed["fields"].append(empty_field)
+    else:
+        smart_report_embed["fields"].append(
+            {"name": "SMART data", "value": "Unavailable", "inline": False}
+        )
 
     embeds = [
         touch_embed,

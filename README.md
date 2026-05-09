@@ -26,12 +26,14 @@ I welcome bugfixes and contributions, but be aware that I will not merge PRs tha
 ## How to use
 
 - Ensure you have Python 3.7 or later installed
+- Ensure your SnapRAID version supports structured `--log` tags
 - Install the necessary dependencies by running `pip3 install -r requirements.txt`
 - Download the [latest release](https://github.com/firasdib/snapper/releases/latest) of this project, or clone the git project.
 - Copy or rename `config.json.example` to `config.json`
 - Run the script via `python3 snapper.py`
 
 You may run the script with the `--force` flag to force a sync/scrub and ignore any thresholds or sanity checks.
+Use `--allow-smart-failure` to let sync/scrub completion stand when SMART data cannot be collected.
 
 ## Configuration
 
